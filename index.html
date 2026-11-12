@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>QRリーダー｜画像から読む（端末内処理）</title>
+<meta name="description" content="写真・スクリーンショット・貼り付けた画像からQRコードを読み取る。画像は端末の外に送信されず、すべてこの端末の中で処理されます。">
+<meta name="theme-color" content="#111114">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="QRリーダー">
+<style>
+  :root { color-scheme: dark; --bg:#111114; --card:#1c1c21; --line:#33333c; --text:#f2f2f5; --sub:#a7a7b3; --accent:#4f9cff; --ok:#35c26e; --warn:#ffb340; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; background:var(--bg); color:var(--text); }
+  main { max-width: 640px; margin: 0 auto; padding: 20px 16px 48px; }
+  h1 { font-size: 22px; margin: 8px 0 4px; }
+  .sub { color: var(--sub); font-size: 14px; line-height: 1.6; margin: 0 0 16px; }
+  .privacy { display:flex; gap:8px; align-items:flex-start; background:#14251a; border:1px solid #245232; color:#b9e7c8; border-radius:12px; padding:10px 12px; font-size:13px; line-height:1.6; margin-bottom:16px; }
+  #drop { border: 2px dashed var(--line); border-radius: 16px; padding: 28px 16px; text-align:center; background: var(--card); transition: border-color .15s, background .15s; cursor: pointer; }
+  #drop.over { border-color: var(--accent); background:#1a2436; }
+  #drop .big { font-size: 17px; font-weight: 600; margin-bottom: 6px; }
+  #drop .small { color: var(--sub); font-size: 13px; line-height: 1.7; }
+  .row { display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; }
+  button, .btn { appearance:none; border:1px solid var(--line); background:var(--card); color:var(--text); font-size:15px; padding:12px 16px; border-radius:12px; cursor:pointer; flex:1; min-width:140px; text-align:center; text-decoration:none; }
+  button:active, .btn:active { transform: scale(.98); }
+  .primary { background: var(--accent); border-color: var(--accent); color:#fff; font-weight:600; }
+  #status { min-height: 24px; margin: 16px 2px 8px; font-size: 14px; color: var(--sub); }
+  #status.busy { color: var(--warn); }
+  #previewWrap { display:none; margin: 8px 0 4px; text-align:center; }
+  #preview { max-width: 100%; max-height: 300px; border-radius: 12px; border:1px solid var(--line); }
+  .result { background: var(--card); border:1px solid var(--line); border-radius: 16px; padding: 16px; margin-top: 12px; word-break: break-all; }
+  .result .kind { font-size: 12px; color: var(--sub); margin-bottom: 6px; }
+  .result .text { font-size: 16px; line-height: 1.6; white-space: pre-wrap; }
+  .result .host { margin-top: 8px; font-size: 13px; color: var(--warn); }
+  .result .row { margin-top: 12px; }
+  .copied { color: var(--ok) !important; }
+  details { margin-top: 28px; color: var(--sub); font-size: 13px; line-height: 1.8; }
+  summary { cursor: pointer; color: var(--text); font-size: 14px; }
+  footer { margin-top: 32px; color: var(--sub); font-size: 12px; line-height: 1.7; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>QRリーダー（画像から）</h1>
+  <p class="sub">写真やスクリーンショットの中のQRコードを読み取って、リンクや文字列を表示します。</p>
+
+  <div class="privacy">🔒 画像は<strong>端末の外に送信されません</strong>。読み取りはすべてこの端末の中（ブラウザ内）で処理されます。サーバーへのアップロードはありません。</div>
+
+  <div id="drop" role="button" tabindex="0" aria-label="画像を選ぶ">
+    <div class="big">ここに画像を貼り付け／ドロップ</div>
+    <div class="small">パソコン: Ctrl+V で貼り付け、または画像ファイルをドラッグ<br>スマホ: 下のボタンから写真を選んでください</div>
+  </div>
+
+  <div class="row">
+    <button id="pickBtn" class="primary" type="button">画像を選ぶ・撮る</button>
+    <button id="pasteBtn" type="button">クリップボードから貼る</button>
+  </div>
+  <input id="file" type="file" accept="image/*" hidden>
+
+  <div id="status">画像を待っています…</div>
+  <div id="previewWrap"><img id="preview" alt="読み取り中の画像"></div>
+  <div id="results"></div>
+
+  <details>
+    <summary>うまく読めないとき</summary>
+    <ul>
+      <li>QRコードの部分だけを切り抜いた画像で試す（周りの余白が大きいと失敗しやすい）</li>
+      <li>スクリーンショットは、QRコードが大きく写っている状態で撮る</li>
+      <li>暗い・ぼやけた写真は、明るい場所で撮り直すか、元のQR表示をスクリーンショットする</li>
+      <li>白黒が反転したQR（黒背景に白など）にも対応しています</li>
+    </ul>
+  </details>
+
+  <details>
+    <summary>iPhoneでアプリのように使う方法</summary>
+    <ol>
+      <li>このページを Safari で開く</li>
+      <li>共有ボタン（□に↑）をタップ</li>
+      <li>「ホーム画面に追加」を選ぶ</li>
+    </ol>
+    <p>ホーム画面のアイコンから、普通のアプリのように全画面で開けるようになります。一度開けば、読み取り機能はオフラインでも動きます。</p>
+  </details>
+
+  <footer>
+    読み取りエンジン: <a href="https://github.com/Sec-ant/zxing-wasm">zxing-wasm</a>（ZXing-C++ / Apache-2.0・MIT）と
+    <a href="https://github.com/cozmo/jsQR">jsQR</a>（Apache-2.0）、対応ブラウザでは標準の BarcodeDetector も併用します。<br>
+    参考実装: <a href="https://github.com/mebjas/html5-qrcode">html5-qrcode</a> 系の「ファイル読み取りは端末内で完結する」方式。自前ホスト版（GitHub Pages）。
+  </footer>
+</main>
+<script src="./vendor/jsQR.js"></script>
+<script type="module" src="./app.js"></script>
+</body>
+</html>
