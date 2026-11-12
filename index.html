@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>QRリーダー｜画像から読む（端末内処理）</title>
 <meta name="description" content="写真・スクリーンショット・貼り付けた画像からQRコードを読み取る。画像は端末の外に送信されず、すべてこの端末の中で処理されます。">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="theme-color" content="#111114">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png">
@@ -50,7 +51,8 @@
   <h1>QRリーダー（画像から）</h1>
   <p class="sub">写真やスクリーンショットの中のQRコードを読み取って、リンクや文字列を表示します。</p>
 
-  <div class="privacy">🔒 画像は<strong>端末の外に送信されません</strong>。読み取りはすべてこの端末の中（ブラウザ内）で処理されます。サーバーへのアップロードはありません。</div>
+  <div class="privacy">🔒 画像と読み取り結果は<strong>端末の外に送信されません</strong>。読み取りはすべてこの端末の中（ブラウザ内）で処理されます。このページ自体のファイルを GitHub Pages から読み込む以外の通信はしません。</div>
+  <div id="offlineReady" style="display:none; color:#35c26e; font-size:13px; margin:-8px 0 14px;">✓ オフライン準備完了（次からは通信なしでも使えます）</div>
 
   <div id="drop" role="button" tabindex="0" aria-label="画像を選ぶ">
     <div class="big">ここに画像を貼り付け／ドロップ</div>
@@ -63,7 +65,7 @@
   </div>
   <input id="file" type="file" accept="image/*" hidden>
 
-  <div id="status">画像を待っています…</div>
+  <div id="status" aria-live="polite">画像を待っています…</div>
   <div id="previewWrap"><img id="preview" alt="読み取り中の画像"></div>
   <div id="results"></div>
 
@@ -84,12 +86,12 @@
       <li>共有ボタン（□に↑）をタップ</li>
       <li>「ホーム画面に追加」を選ぶ</li>
     </ol>
-    <p>ホーム画面のアイコンから、普通のアプリのように全画面で開けるようになります。一度開けば、読み取り機能はオフラインでも動きます。</p>
+    <p>ホーム画面のアイコンから、普通のアプリのように全画面で開けるようになります。<strong>追加したあと、ホーム画面のアイコンから一度オンラインで開く</strong>と、以後はオフラインでも読み取り機能が動きます（画面に「オフライン準備完了」が出れば準備OKです）。</p>
   </details>
 
   <footer>
     読み取りエンジン: <a href="https://github.com/Sec-ant/zxing-wasm">zxing-wasm</a>（ZXing-C++ / Apache-2.0・MIT）と
-    <a href="https://github.com/cozmo/jsQR">jsQR</a>（Apache-2.0）、対応ブラウザでは標準の BarcodeDetector も併用します。<br>
+    <a href="https://github.com/cozmo/jsQR">jsQR</a>（Apache-2.0）、対応ブラウザでは標準の BarcodeDetector も併用します。同梱ライブラリのライセンスは <a href="./vendor/THIRD-PARTY.md">THIRD-PARTY.md</a> にまとめています。<br>
     参考実装: <a href="https://github.com/mebjas/html5-qrcode">html5-qrcode</a> 系の「ファイル読み取りは端末内で完結する」方式。自前ホスト版（GitHub Pages）。
   </footer>
 </main>
